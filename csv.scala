@@ -46,7 +46,7 @@ object CsvRowEncoder:
             .find(_.tpe =:= TypeRepr.of[csvLabel])
             .map: annTerm =>
               annTerm.asExpr match
-                case '{ csvLabel($s) } => s.value.get
+                case '{ csvLabel($s) } => s.valueOrAbort
 
           alias.getOrElse(camelCase2snakeCase(sym.name))
         .mkString(",")
@@ -54,16 +54,15 @@ object CsvRowEncoder:
 
     def makeRowFn(param: Expr[A]): Expr[String] =
       val paramTerm = param.asTerm
-      val fields    = TypeRepr.of[A].classSymbol.get.caseFields
+      val fields    = cls.caseFields
 
       fields
         .map: field =>
           val select       = paramTerm.select(field)
-          val isBoolean    = Expr(select.tpe.widen =:= TypeRepr.of[Boolean])
-          val withToString = '{ ${ paramTerm.select(field).asExpr }.toString }
-          isBoolean match
-            case Expr(true)  => withToString.asExprOf[String]
-            case Expr(false) => select.asExprOf[String]
+          val isString     = select.tpe.widen =:= TypeRepr.of[String]
+          val withToString = '{ ${ select.asExpr }.toString }
+          if isString then select.asExprOf[String]
+          else withToString.asExprOf[String]
         .reduce: (acc, fld) =>
           '{ ${ acc } + "," + ${ fld } }
     end makeRowFn
