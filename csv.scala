@@ -2,17 +2,17 @@ package csv
 
 import scala.quoted.*
 
-trait CsvRowEncoder[A <: Product]:
+trait CsvRowEncoder[A]:
   def header: String
   def asLine(self: A): String
 
 
-extension [A <: Product: CsvRowEncoder as C](self: A)
+extension [A: CsvRowEncoder as C](self: A)
   inline def asCsvLine = C.asLine(self)
   inline def csvHeader = C.header
 
 
-private def makeEncoder[A <: Product](hdr: String, asLineFn: A => String): CsvRowEncoder[A] =
+private def makeEncoder[A](hdr: String, asLineFn: A => String): CsvRowEncoder[A] =
   new CsvRowEncoder:
     override def header: String          = hdr
     override def asLine(self: A): String = asLineFn(self)
@@ -28,10 +28,10 @@ private inline def camelCase2snakeCase(inline camelCaseString: String): String =
 
 
 object CsvRowEncoder:
-  inline def derived[A <: Product]: CsvRowEncoder[A] =
+  inline def derived[A]: CsvRowEncoder[A] =
     ${ derivedImpl[A] }
 
-  def derivedImpl[A <: Product: Type](using Quotes): Expr[CsvRowEncoder[A]] =
+  def derivedImpl[A: Type](using Quotes): Expr[CsvRowEncoder[A]] =
     import quotes.reflect.*
 
     val cls = TypeRepr.of[A].classSymbol.getOrElse(throw RuntimeException("A class is expected"))
